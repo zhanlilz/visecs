@@ -14,6 +14,12 @@ import plotly.graph_objects as go
 
 import json
 
+app = dash.Dash(__name__, 
+        meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],)
+# Below is the Flask server that will deliver this application to web browsers
+# of users.
+server = app.server 
+
 # Set up data files
 data_dir = '/misc/team/_ZARNEKOW/2_data_processed/met/biomet30minute/'
 met_csv_dict = {
@@ -181,9 +187,6 @@ def genFigMultiScatter(df_dict, selectedpoints_dict):
     plotly_fig.update_layout(width=None, height=None)
 
     return plotly_fig
-
-app = dash.Dash(__name__, 
-        meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],)
 
 app.layout = html.Div(
     children=[
