@@ -142,7 +142,6 @@ def genFigStackTimeSeries(df_dict):
     df = next(iter(df_dict.values()))
     nvars = df.shape[1]
     var_names = df.columns
-    print(nvars, var_names, df.head())
     plotly_fig = plotly.subplots.make_subplots(rows=nvars, cols=1)
 
     for i, vnval in enumerate(var_names):
