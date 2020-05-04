@@ -148,7 +148,7 @@ def genFigStackTimeSeries(df_dict):
         for k, df in df_dict.items():
             plotly_fig.add_trace(
                 go.Scattergl(
-                    name='{0:d}, {1:s}'.format(k, str(vnval)), 
+                    name='{0:d}<br>{1:s}'.format(k, ', '.join(vnval)), 
                     x=[val+years2DummyYear(df.index[0]) for val in df.index], 
                     y=df.iloc[:, i], 
                     mode='markers', 
@@ -165,7 +165,7 @@ def genFigStackTimeSeries(df_dict):
     plotly_fig.update_layout(showlegend=True)
     plotly_fig.update_xaxes(dict(matches='x'))
     for i in range(nvars):
-        plotly_fig.update_yaxes(title_text=str(var_names[i]), row=i+1, col=1)
+        plotly_fig.update_yaxes(title_text=', '.join(var_names[i]), row=i+1, col=1)
     plotly_fig.update_xaxes(
         tickformat='%H:%M<br>%b %d', 
     )
@@ -208,9 +208,9 @@ def genFigMultiScatter(df_dict, selectedpoints_dict):
     for k, df in df_dict.items():
         plotly_fig.add_trace(
             go.Scattergl(
-                name='{0:d}<br>{1:s} vs {2:s}'.format(k, 
-                    str(df.columns[0]), 
-                    str(df.columns[1])), 
+                name='{0:d}<br>{1:s}<br>vs<br>{2:s}'.format(k, 
+                    ', '.join(df.columns[0]), 
+                    ', '.join(df.columns[1])), 
                 showlegend=True, 
                 x=df.iloc[:, 0], 
                 y=df.iloc[:, 1], 
@@ -229,8 +229,8 @@ def genFigMultiScatter(df_dict, selectedpoints_dict):
         )
 
     plotly_fig.update_layout(showlegend=True)
-    plotly_fig.update_xaxes(title_text=str(df.columns[0]))
-    plotly_fig.update_yaxes(title_text=str(df.columns[1]))
+    plotly_fig.update_xaxes(title_text=', '.join(df.columns[0]))
+    plotly_fig.update_yaxes(title_text=', '.join(df.columns[1]))
     plotly_fig.update_layout(width=None, height=None)
 
     return plotly_fig
