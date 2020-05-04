@@ -16,6 +16,7 @@ import json
 
 app = dash.Dash(__name__, 
         meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],)
+app.title = 'VISECS' 
 # Below is the Flask server that will deliver this application to web browsers
 # of users.
 server = app.server 
