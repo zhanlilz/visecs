@@ -21,7 +21,7 @@ app = dash.Dash(__name__,
 server = app.server 
 
 # Set up data files
-data_dir = '/misc/team/_ZARNEKOW/2_data_processed/met/biomet30minute/'
+met_data_dir = '/misc/team/_ZARNEKOW/2_data_processed/met/biomet30minute/'
 met_csv_dict = {
 #    2007:'ZRK_biomet_20070509T000000_20090725T180000_30min.txt',
     2013:'ZRK_biomet_20130305T003000_20140101T000000_30min.txt',
@@ -32,18 +32,63 @@ met_csv_dict = {
     2018:'ZRK_biomet_20180101T003000_20190101T000000_30min.txt',
     2019:'ZRK_biomet_20190101T003000_20200101T000000_30min.txt',
 }
+flux_data_dir = '/home/zhanli/Workspace/mefe_team/_ZARNEKOW/2_data_processed/flux'
+flux_csv_dict = {
+#    2007:'2007/ZRK_TGA_FluxFratini_qc.txt',
+    2013:'2013/ZRK_2013_FluxFratini_qc.csv',
+    2014:'2014/ZRK_2014_FluxFratini_qc.csv',
+    2015:'2015/ZRK_2015_FluxFratini_qc.csv',
+    2016:'2016/ZRK_2016_FluxFratini_qc.csv',
+    2017:'2017/ZRK_2017_FluxFratini_qc.csv',
+    2018:'2018/ZRK_2018_FluxFratini_qc.txt',
+}
+
+input_dir_dict = {
+    'biomet':met_data_dir, 
+    'flux':flux_data_dir,
+}
+input_files_dict = {
+    'biomet':met_csv_dict, 
+    'flux':flux_csv_dict,
+}
+
 year_options = [{'label':'{0:d}'.format(yval), 'value':yval} for yval in met_csv_dict.keys()]
 candidate_colors = plotly.colors.qualitative.Set3
 year_colors = {val:candidate_colors[i%len(candidate_colors)] for i, val in enumerate(met_csv_dict.keys())}
-tmp_df = pd.read_csv(os.path.join(data_dir, met_csv_dict[2013]), header=0, index_col=0, nrows=3)
-var_options = [{'label':cval, 'value':cval} for cval in tmp_df.columns]
+
+input_cols_dict = {
+    incsvcat:pd.read_csv(os.path.join(input_dir_dict[incsvcat], incsvdict[2013]), 
+        header=0, index_col=0, nrows=3).columns 
+    for incsvcat, incsvdict in input_files_dict.items()
+}
+# var_options = [{'label':cval, 'value':cval} for cval in tmp_df.columns]
+var_options = [
+    {
+        'label':incsvcat,
+        'value':incsvcat, 
+        'child':[{'label':cval, 'value':cval} for cval in cols]   
+    } 
+    for incsvcat, cols in input_cols_dict.items()
+]
+
 # Load data into memory
 met_df_dict = {}
-for k, val in met_csv_dict.items():
-    tmp_df = pd.read_csv(os.path.join(data_dir, val), header=0, index_col=0)
-    tmp_df.index = pd.to_datetime(tmp_df.index)
-    tmp_df.index.freq = "30min"
-    met_df_dict[k] = tmp_df.sort_index(axis=0)
+for k in set(list(met_csv_dict.keys())+list(flux_csv_dict.keys())):
+    tmp_df_list = [None]*len(input_files_dict)
+    for i, incsvcat in enumerate(input_files_dict.keys()):
+        if k in input_files_dict[incsvcat].keys():
+            tmp_df = pd.read_csv(os.path.join(input_dir_dict[incsvcat], 
+                input_files_dict[incsvcat][k]), header=0, index_col=0)
+        else:
+            tmp_df = pd.DataFrame(np.zeros((2, len(input_cols_dict[incsvcat])))+np.nan, 
+                index=['{0:d}-01-01 00:30'.format(k), '{0:d}-01-01 01:00'.format(k)], 
+                columns=input_cols_dict[incsvcat])
+        tmp_df.index = pd.to_datetime(tmp_df.index)
+        tmp_df_list[i] = tmp_df.asfreq('30min')
+
+    met_df_dict[k] = pd.concat(tmp_df_list, axis='columns', join='outer', 
+        keys=input_files_dict.keys()).sort_index(axis=0)
+
 # Shift the Jan 01 00:00:00 to the correct year from the previous year
 for yval in range(np.min(list(met_df_dict.keys())), np.max(list(met_df_dict.keys()))+1):
     if yval in met_df_dict.keys():
@@ -97,15 +142,16 @@ def genFigStackTimeSeries(df_dict):
     df = next(iter(df_dict.values()))
     nvars = df.shape[1]
     var_names = df.columns
+    print(nvars, var_names, df.head())
     plotly_fig = plotly.subplots.make_subplots(rows=nvars, cols=1)
 
     for i, vnval in enumerate(var_names):
         for k, df in df_dict.items():
             plotly_fig.add_trace(
                 go.Scattergl(
-                    name='{0:d}, {1:s}'.format(k, df.columns[i]), 
+                    name='{0:d}, {1:s}'.format(k, str(vnval)), 
                     x=[val+years2DummyYear(df.index[0]) for val in df.index], 
-                    y=df[vnval], 
+                    y=df.iloc[:, i], 
                     mode='markers', 
                     marker={
                         'size':3, 
@@ -120,7 +166,7 @@ def genFigStackTimeSeries(df_dict):
     plotly_fig.update_layout(showlegend=True)
     plotly_fig.update_xaxes(dict(matches='x'))
     for i in range(nvars):
-        plotly_fig.update_yaxes(title_text=var_names[i], row=i+1, col=1)
+        plotly_fig.update_yaxes(title_text=str(var_names[i]), row=i+1, col=1)
     plotly_fig.update_xaxes(
         tickformat='%H:%M<br>%b %d', 
     )
@@ -163,7 +209,9 @@ def genFigMultiScatter(df_dict, selectedpoints_dict):
     for k, df in df_dict.items():
         plotly_fig.add_trace(
             go.Scattergl(
-                name='{1:d}<br>{0[0]:s} vs {0[1]:s}'.format(df.columns, k), 
+                name='{0:d}<br>{1:s} vs {2:s}'.format(k, 
+                    str(df.columns[0]), 
+                    str(df.columns[1])), 
                 showlegend=True, 
                 x=df.iloc[:, 0], 
                 y=df.iloc[:, 1], 
@@ -182,8 +230,8 @@ def genFigMultiScatter(df_dict, selectedpoints_dict):
         )
 
     plotly_fig.update_layout(showlegend=True)
-    plotly_fig.update_xaxes(title_text=df.columns[0])
-    plotly_fig.update_yaxes(title_text=df.columns[1])
+    plotly_fig.update_xaxes(title_text=str(df.columns[0]))
+    plotly_fig.update_yaxes(title_text=str(df.columns[1]))
     plotly_fig.update_layout(width=None, height=None)
 
     return plotly_fig
@@ -207,7 +255,12 @@ app.layout = html.Div(
         html.Div(
             id='control-card', 
             children=[
-                html.P('Select Year'),
+                html.P(
+                        'Select Year', 
+                        style={
+                            'font-weight':'bold', 
+                        },
+                    ),
                 dcc.Dropdown(
                     id='select-year', 
                     options=year_options, 
@@ -220,11 +273,32 @@ app.layout = html.Div(
                             children=[
                                 html.P(
                                     'Select Variable #1', 
+                                    style={
+                                        'font-weight':'bold',
+                                    }, 
+                                ),
+                                html.P(
+                                    'Category', 
+                                    style={
+                                        'font-weight':'normal',
+                                    }, 
                                 ),
                                 dcc.Dropdown(
-                                    id='select-var1',
-                                    options=var_options, 
-                                    value=var_options[0]['value'],
+                                    id='select-var1-1', 
+                                    options=[{k:val[k] for k in ['label', 'value']} for val in var_options], 
+                                    value=var_options[0]['value'], 
+                                    clearable=False, 
+                                ), 
+                                html.P(
+                                    var_options[0]['label'], 
+                                    style={
+                                        'font-weight':'normal',
+                                    }, 
+                                ),
+                                dcc.Dropdown(
+                                    id='select-var1-2',
+                                    options=var_options[0]['child'], 
+                                    value=var_options[0]['child'][0]['value'],
                                     clearable=False, 
                                 ), 
                             ], 
@@ -238,13 +312,34 @@ app.layout = html.Div(
                             children=[
                                 html.P(
                                     'Select Variable #2', 
+                                    style={
+                                        'font-weight':'bold',
+                                    },
+                                ),
+                                html.P(
+                                    'Category', 
+                                    style={
+                                        'font-weight':'normal',
+                                    }, 
                                 ),
                                 dcc.Dropdown(
-                                    id='select-var2',
-                                    options=var_options, 
-                                    value=var_options[1]['value'],
+                                    id='select-var2-1',
+                                    options=[{k:val[k] for k in ['label', 'value']} for val in var_options], 
+                                    value=var_options[0]['value'],
                                     clearable=False, 
                                 ),
+                                html.P(
+                                    var_options[0]['label'], 
+                                    style={
+                                        'font-weight':'normal',
+                                    }, 
+                                ),
+                                dcc.Dropdown(
+                                    id='select-var2-2',
+                                    options=var_options[0]['child'], 
+                                    value=var_options[0]['child'][1]['value'],
+                                    clearable=False, 
+                                ), 
                             ], 
                             style={
                                 'float':'left',
@@ -364,27 +459,73 @@ def setYears4Scatter(
 
 @app.callback(
     [
+        Output('select-var1-2', 'options'), 
+        Output('select-var1-2', 'value'), 
+    ], 
+    [
+        Input('select-var1-1', 'value'), 
+    ], 
+)
+def setVar1_2(
+    var1_1, 
+):
+    tmpidx = 0
+    for i in range(len(var_options)):
+        if var_options[i]['value'] == var1_1:
+            tmpidx = i
+            break
+    options=var_options[tmpidx]['child']
+    value=var_options[tmpidx]['child'][0]['value']
+    return options, value, 
+
+@app.callback(
+    [
+        Output('select-var2-2', 'options'), 
+        Output('select-var2-2', 'value'), 
+    ], 
+    [
+        Input('select-var2-1', 'value'), 
+    ], 
+)
+def setVar1_2(
+    var2_1, 
+):
+    tmpidx = 0
+    for i in range(len(var_options)):
+        if var_options[i]['value'] == var2_1:
+            tmpidx = i
+            break
+    options=var_options[tmpidx]['child']
+    value=var_options[tmpidx]['child'][0]['value']
+    return options, value, 
+
+@app.callback(
+    [
         Output('ts-info', 'children'),
     ], 
     [
         Input('select-year', 'value'), 
-        Input('select-var1', 'value'),
-        Input('select-var2', 'value'), 
+        Input('select-var1-2', 'value'),
+        Input('select-var2-2', 'value'), 
     ],
     [
         State('ts-info', 'children'), 
+        State('select-var1-1', 'value'), 
+        State('select-var2-1', 'value'), 
     ], 
 )
 def updateTimeSeriesInfo(
-    year, var1, var2, ts_info_json, 
+    year, 
+    var1, var2, 
+    ts_info_json, var1_1, var2_1, 
 ):
     if len(year)==0 or var1 is None or var2 is None:
         return ts_info_json, 
     else:
         ts_info = {
             'year':year, 
-            'var1':var1, 
-            'var2':var2, 
+            'var1':(var1_1, var1), 
+            'var2':(var2_1, var2), 
         }
         return json.dumps(ts_info), 
 
@@ -400,7 +541,8 @@ def updateFigTimeSeries(
     ts_info_json
 ):
     ts_info = json.loads(ts_info_json)
-    year_list,var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
+    year_list, var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
+    var1, var2 = tuple(var1), tuple(var2)
     return genFigStackTimeSeries({val:met_df_dict[val][[var1, var2]] for val in year_list}),
 
 @app.callback(
@@ -427,6 +569,7 @@ def updateTimeSeriesBounds(
 
     ts_info = json.loads(ts_info_json)
     year_list,var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
+    var1, var2 = tuple(var1), tuple(var2)
     df_list = [met_df_dict[val][[var1, var2]] for val in year_list]
     nvars = df_list[0].shape[1]
 
@@ -473,6 +616,7 @@ def updateFigScatter(
 ):
     ts_info = json.loads(ts_info_json)
     year,var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
+    var1, var2 = tuple(var1), tuple(var2)
 
     ts_bounds = json.loads(ts_bounds_json)
     scatter_year_list = ts_bounds['years']
@@ -506,4 +650,4 @@ def updateFigScatter(
     return genFigMultiScatter(df_dict, selectedpoints_dict)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8901)
