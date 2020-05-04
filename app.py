@@ -362,13 +362,18 @@ app.layout = html.Div(
                                     style={
                                         'text-align':'center', 
                                     }, 
-                                ), 
-                                dcc.Graph(
-                                    id='fig-stack-time-series', 
-                                    style={
-                                        'height':'600px',
-                                    },
-                                ), 
+                                ),
+                                dcc.Loading(
+                                    children=[
+                                        dcc.Graph(
+                                            id='fig-stack-time-series', 
+                                            style={
+                                                'height':'600px',
+                                            },
+                                        ), 
+                                    ],
+                                    type='default', 
+                                ),
                             ],
                             style={
                                 'float':'left',
@@ -402,12 +407,17 @@ app.layout = html.Div(
                                         'display':'flex',
                                         'align-items':'center', 
                                     }, 
-                                ), 
-                                dcc.Graph(
-                                    id='fig-scatter',
-                                    style={
-                                        'height':'600px',
-                                    },
+                                ),
+                                dcc.Loading(
+                                    children=[
+                                        dcc.Graph(
+                                            id='fig-scatter',
+                                            style={
+                                                'height':'600px',
+                                            },
+                                        ), 
+                                    ], 
+                                    type='default', 
                                 ), 
                             ], 
                             style={
@@ -534,7 +544,7 @@ def updateTimeSeriesInfo(
 
 @app.callback(
     [
-        Output('fig-stack-time-series', 'figure'), 
+        Output('fig-stack-time-series', 'figure'),
     ], 
     [
         Input('ts-info', 'children'), 
@@ -546,7 +556,8 @@ def updateFigTimeSeries(
     ts_info = json.loads(ts_info_json)
     year_list, var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
     var1, var2 = tuple(var1), tuple(var2)
-    return genFigStackTimeSeries({val:in_data_df_dict[val][[var1, var2]] for val in year_list}),
+    plotly_fig = genFigStackTimeSeries({val:in_data_df_dict[val][[var1, var2]] for val in year_list})
+    return plotly_fig, 
 
 @app.callback(
     [
