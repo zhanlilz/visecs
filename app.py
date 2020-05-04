@@ -289,7 +289,8 @@ app.layout = html.Div(
                                     clearable=False, 
                                 ), 
                                 html.P(
-                                    var_options[0]['label'], 
+                                    id='title-var1-2', 
+                                    children=var_options[0]['label'], 
                                     style={
                                         'font-weight':'normal',
                                     }, 
@@ -328,7 +329,8 @@ app.layout = html.Div(
                                     clearable=False, 
                                 ),
                                 html.P(
-                                    var_options[0]['label'], 
+                                    id='title-var2-2', 
+                                    children=var_options[0]['label'], 
                                     style={
                                         'font-weight':'normal',
                                     }, 
@@ -460,6 +462,7 @@ def setYears4Scatter(
     [
         Output('select-var1-2', 'options'), 
         Output('select-var1-2', 'value'), 
+        Output('title-var1-2', 'children'), 
     ], 
     [
         Input('select-var1-1', 'value'), 
@@ -475,12 +478,13 @@ def setVar1_2(
             break
     options=var_options[tmpidx]['child']
     value=var_options[tmpidx]['child'][0]['value']
-    return options, value, 
+    return options, value, var_options[tmpidx]['label']
 
 @app.callback(
     [
         Output('select-var2-2', 'options'), 
         Output('select-var2-2', 'value'), 
+        Output('title-var2-2', 'children'),
     ], 
     [
         Input('select-var2-1', 'value'), 
@@ -496,7 +500,7 @@ def setVar1_2(
             break
     options=var_options[tmpidx]['child']
     value=var_options[tmpidx]['child'][0]['value']
-    return options, value, 
+    return options, value, var_options[tmpidx]['label']
 
 @app.callback(
     [
