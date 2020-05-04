@@ -72,7 +72,7 @@ var_options = [
 ]
 
 # Load data into memory
-met_df_dict = {}
+in_data_df_dict = {}
 for k in set(list(met_csv_dict.keys())+list(flux_csv_dict.keys())):
     tmp_df_list = [None]*len(input_files_dict)
     for i, incsvcat in enumerate(input_files_dict.keys()):
@@ -86,18 +86,18 @@ for k in set(list(met_csv_dict.keys())+list(flux_csv_dict.keys())):
         tmp_df.index = pd.to_datetime(tmp_df.index)
         tmp_df_list[i] = tmp_df.asfreq('30min')
 
-    met_df_dict[k] = pd.concat(tmp_df_list, axis='columns', join='outer', 
+    in_data_df_dict[k] = pd.concat(tmp_df_list, axis='columns', join='outer', 
         keys=input_files_dict.keys()).sort_index(axis=0)
 
 # Shift the Jan 01 00:00:00 to the correct year from the previous year
-for yval in range(np.min(list(met_df_dict.keys())), np.max(list(met_df_dict.keys()))+1):
-    if yval in met_df_dict.keys():
-        sflag = met_df_dict[yval].index.year != yval
-        if yval+1 in met_df_dict.keys():
-            met_df_dict[yval+1] = pd.concat([
-                met_df_dict[yval].loc[sflag, :], 
-                met_df_dict[yval+1]], axis=0)
-        met_df_dict[yval] = met_df_dict[yval].loc[np.logical_not(sflag), :]
+for yval in range(np.min(list(in_data_df_dict.keys())), np.max(list(in_data_df_dict.keys()))+1):
+    if yval in in_data_df_dict.keys():
+        sflag = in_data_df_dict[yval].index.year != yval
+        if yval+1 in in_data_df_dict.keys():
+            in_data_df_dict[yval+1] = pd.concat([
+                in_data_df_dict[yval].loc[sflag, :], 
+                in_data_df_dict[yval+1]], axis=0)
+        in_data_df_dict[yval] = in_data_df_dict[yval].loc[np.logical_not(sflag), :]
 
 year_dummy=2012
 def years2DummyYear(dt):
@@ -546,7 +546,7 @@ def updateFigTimeSeries(
     ts_info = json.loads(ts_info_json)
     year_list, var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
     var1, var2 = tuple(var1), tuple(var2)
-    return genFigStackTimeSeries({val:met_df_dict[val][[var1, var2]] for val in year_list}),
+    return genFigStackTimeSeries({val:in_data_df_dict[val][[var1, var2]] for val in year_list}),
 
 @app.callback(
     [
@@ -573,7 +573,7 @@ def updateTimeSeriesBounds(
     ts_info = json.loads(ts_info_json)
     year_list,var1, var2 = ts_info['year'], ts_info['var1'], ts_info['var2']
     var1, var2 = tuple(var1), tuple(var2)
-    df_list = [met_df_dict[val][[var1, var2]] for val in year_list]
+    df_list = [in_data_df_dict[val][[var1, var2]] for val in year_list]
     nvars = df_list[0].shape[1]
 
     # Default bounds are data min and max. 
@@ -627,7 +627,7 @@ def updateFigScatter(
     df_dict = {}
     selectedpoints_dict = {}
     for scatter_year in scatter_year_list:
-        df = met_df_dict[scatter_year][[var1, var2]]
+        df = in_data_df_dict[scatter_year][[var1, var2]]
         df_dict[scatter_year] = df
 
         sflag = np.ones_like(df.index, dtype=np.bool_)
