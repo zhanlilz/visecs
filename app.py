@@ -409,16 +409,11 @@ app.layout = html.Div(
                                         'align-items':'center', 
                                     }, 
                                 ),
-                                dcc.Loading(
-                                    children=[
-                                        dcc.Graph(
-                                            id='fig-scatter',
-                                            style={
-                                                'height':'600px',
-                                            },
-                                        ), 
-                                    ], 
-                                    type='default', 
+                                dcc.Graph(
+                                    id='fig-scatter',
+                                    style={
+                                        'height':'600px',
+                                    },
                                 ), 
                             ], 
                             style={
