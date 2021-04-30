@@ -5,14 +5,17 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 
 import os
+import pathlib
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import plotly
+import plotly.subplots
 import plotly.graph_objects as go
 
 import json
+import configparser
 
 app = dash.Dash(__name__, 
         meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],)
@@ -21,44 +24,36 @@ app.title = 'VISECS'
 # of users.
 server = app.server 
 
-# Set up data files
-met_data_dir = '/misc/team/_ZARNEKOW/2_data_processed/met/biomet30minute/'
-met_csv_dict = {
-#    2007:'ZRK_biomet_20070509T000000_20090725T180000_30min.txt',
-    2013:'ZRK_biomet_20130305T003000_20140101T000000_30min.txt',
-    2014:'ZRK_biomet_20140101T003000_20150101T000000_30min.txt',
-    2015:'ZRK_biomet_20150101T003000_20160101T000000_30min.txt',
-    2016:'ZRK_biomet_20160101T003000_20170101T000000_30min.txt',
-    2017:'ZRK_biomet_20170101T003000_20180101T000000_30min.txt',
-    2018:'ZRK_biomet_20180101T003000_20190101T000000_30min.txt',
-    2019:'ZRK_biomet_20190101T003000_20200101T000000_30min.txt',
-}
-flux_data_dir = '/home/zhanli/Workspace/mefe_team/_ZARNEKOW/2_data_processed/flux'
-flux_csv_dict = {
-#    2007:'2007/ZRK_TGA_FluxFratini_qc.txt',
-    2013:'2013/ZRK_2013_FluxFratini_qc.csv',
-    2014:'2014/ZRK_2014_FluxFratini_qc.csv',
-    2015:'2015/ZRK_2015_FluxFratini_qc.csv',
-    2016:'2016/ZRK_2016_FluxFratini_qc.csv',
-    2017:'2017/ZRK_2017_FluxFratini_qc.csv',
-    2018:'2018/ZRK_2018_FluxFratini_qc.txt',
-}
+# Path to input data files in the file DATA_INI are relative to the directory of
+# this app.py
+DATA_PATH = pathlib.Path(__file__).parent.resolve()
+# An environment variable `DATA_INI` gives the paths to input data files. The
+# paths are relative to `DATA_PATH`
+DATA_INI = os.getenv('DATA_INI')
 
-input_dir_dict = {
-    'biomet':met_data_dir, 
-    'flux':flux_data_dir,
-}
-input_files_dict = {
-    'biomet':met_csv_dict, 
-    'flux':flux_csv_dict,
-}
+def parseIni(ini_file):
+    config = configparser.ConfigParser()
+    config.read(ini_file)
+    input_files_dict = dict()
+    for sec_val in config.sections():
+        cur_dict = dict()
+        for key_val in config[sec_val]:
+            cur_dict[int(key_val)] = config[sec_val][key_val]
+        input_files_dict[sec_val] = cur_dict
+    return input_files_dict
 
-year_options = [{'label':'{0:d}'.format(yval), 'value':yval} for yval in met_csv_dict.keys()]
+input_files_dict = parseIni(DATA_INI)
+
+year_list = sum([list(val) for val in input_files_dict.values()], start=[])
+year_list = np.sort(list(set(year_list)))
+year_options = [{'label':'{0:d}'.format(yval), 'value':yval} 
+    for yval in year_list]
 candidate_colors = plotly.colors.qualitative.Set3
-year_colors = {val:candidate_colors[i%len(candidate_colors)] for i, val in enumerate(met_csv_dict.keys())}
+year_colors = {val:candidate_colors[i%len(candidate_colors)] 
+    for i, val in enumerate(year_list)}
 
 input_cols_dict = {
-    incsvcat:pd.read_csv(os.path.join(input_dir_dict[incsvcat], incsvdict[2013]), 
+    incsvcat:pd.read_csv(os.path.join(DATA_PATH, incsvdict[2013]), 
         header=0, index_col=0, nrows=3).columns 
     for incsvcat, incsvdict in input_files_dict.items()
 }
@@ -74,11 +69,11 @@ var_options = [
 
 # Load data into memory
 in_data_df_dict = {}
-for k in set(list(met_csv_dict.keys())+list(flux_csv_dict.keys())):
+for k in year_list:
     tmp_df_list = [None]*len(input_files_dict)
     for i, incsvcat in enumerate(input_files_dict.keys()):
         if k in input_files_dict[incsvcat].keys():
-            tmp_df = pd.read_csv(os.path.join(input_dir_dict[incsvcat], 
+            tmp_df = pd.read_csv(os.path.join(DATA_PATH, 
                 input_files_dict[incsvcat][k]), header=0, index_col=0)
         else:
             tmp_df = pd.DataFrame(np.zeros((2, len(input_cols_dict[incsvcat])))+np.nan, 
