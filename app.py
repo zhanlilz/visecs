@@ -27,8 +27,9 @@ server = app.server
 # Path to input data files in the file DATA_INI are relative to the directory of
 # this app.py
 DATA_PATH = pathlib.Path(__file__).parent.resolve()
-# An environment variable `DATA_INI` gives the paths to input data files. The
-# paths are relative to `DATA_PATH`
+# An environment variable `DATA_INI` gives a path to an INI file that lists the
+# paths to input data files. The paths to input data files in the INI file are
+# relative to `DATA_PATH`
 DATA_INI = os.getenv('DATA_INI')
 
 def parseIni(ini_file):
